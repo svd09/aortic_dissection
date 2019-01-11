@@ -1,0 +1,120 @@
+---
+title: "clean"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# this is the document for further cleaning the database to get variables into order.
+
+```{r get the dataframe into the system}
+
+library(haven);library(tidyverse);library(mosaic);library(survey)
+
+df <- read_csv("F:/aor_dis/df/n0815.csv")
+
+str(df)
+```
+```{r create more var}
+
+# aortic dissection surgical repair
+
+rep <- c("3844","3845","3834","3835","3957","3958")
+
+df$rep <-  with(df, ifelse((pr1 %in% rep | pr2 %in% rep | pr3 %in% rep),"yes","no"))
+
+df %>% count(rep)
+
+
+
+# also determine those patients who had associated cardiac surgical procedure 
+
+cs <- c("3961","3963","3520","3521","3522","3600","3611","3612","3613","3614","3615","3616","3617","3918","3619", "3710","3711","3712","3832","3733","3734","3736")
+df$cs <-  with(df, ifelse((pr1 %in% cs | pr2 %in% cs | pr3 %in% cs | pr4 %in% cs | pr5 %in% cs | pr6 %in% cs | pr7 %in% cs | pr8 %in% cs| pr9 %in% cs | pr10 %in% cs),"yes","no"))
+
+df %>% count(cs)
+
+
+# Determine those patients who have type A aortic dissection surgical repair
+
+df$tasr <- with(df,ifelse((df$rep == "yes" & df$cs == "yes"),"yes","no"))
+
+df %>% count(tasr)
+
+
+# determine patients undergoing tevar
+
+tevar <- c("3973")
+
+df$tevar <-  with(df, ifelse((pr1 %in% tevar | pr2 %in% tevar | pr3 %in% tevar | pr4 %in% tevar | pr5 %in% tevar | pr6 %in% tevar | pr7 %in% tevar | pr8 %in% tevar| pr9 %in% tevar | pr10 %in% tevar),"yes","no"))
+
+df %>% count(tevar)
+
+
+# type B surgical repair patients
+
+df$tbsr <- with(df, ifelse((df$rep == "yes" & df$cs == "no"), "yes","no"))
+
+df %>% count(tbsr)
+
+df$deal[df$tasr == "yes"] <- "tasr"
+df$deal[df$tbsr == "yes"]<- "tbsr"
+df$deal[df$tevar == "yes"]<- "tevar"
+df$deal[df$tasr == "no" & df$tbsr == "no" & df$tevar == "no"]<- "mm"
+
+df %>% count(deal)
+
+df$comb <- with(df, ifelse((tasr == "yes" & tevar == "yes"),"yes","no"))
+
+df %>% count(comb)
+```
+
+Now, get survey design object created to start doing basic survey analysis:
+
+```{r}
+options(survey.lonely.psu = "certainty")
+
+df_s<- svydesign(ids = ~hosp_nis, weights = ~discwt.x, strata = ~nis_stratum.x, data = df, nest = TRUE)
+
+summary(df_s)
+```
+
+Now, using the survey design object *df_s* get standard estimates:
+
+```{r}
+
+# patients stratified for each therapy according to year
+
+svytable(~deal+year.x , design = df_s)
+
+# patients having combined type A aortic dissection repair and TEVAR during the same admission
+
+svytable(~comb + year.x , design = df_s)
+
+```
+
+```{r}
+# create basic demographics and presentation of patients according to year and overall.
+
+# overall demogrphics:
+
+# age:
+
+svymean(~age, design = df_s)
+
+# aweekend:
+
+svytable(~aweekend, design = df_s)
+
+# female:
+
+svytable(~female, design = df_s)
+
+table(df$race)
+```
+
+
