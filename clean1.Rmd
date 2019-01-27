@@ -1,8 +1,8 @@
 ---
 title: "clean"
 output:
-  word_document: default
   html_document: default
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -15,10 +15,12 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(haven);library(tidyverse);library(mosaic);library(survey)
 
-df <- read_csv("F:/aor_dis/df/n0815.csv")
+df <- read_csv("D:/aor_dis/df/n0815.csv")
 
 str(df)
 ```
+
+
 ```{r create more var}
 
 # aortic dissection surgical repair
@@ -71,11 +73,62 @@ df %>% count(deal)
 df$comb <- with(df, ifelse((tasr == "yes" & tevar == "yes"),"yes","no"))
 
 df %>% count(comb)
+
+# race converted to new variable race_n
+
+df <- df %>% mutate(race_n = fct_recode(factor(race),
+                           "caucasian" = "1",
+                           "AA" = "2",
+                           "Hispanic"= "3",
+                           "Others" = "4",
+                           "Others" = "5",
+                           "Others" = "6"))
+
+df %>% count(race_n)
+
+# type of hospital according to location and academic/non-academic
+
+df <- df %>% mutate(hosp_type = fct_recode(factor(hosp_locteach),
+                                           "urban/acad" = "3",
+                                           "urban/nonacad" = "2",
+                                           "rural" = "1"))
+
+df %>% count(hosp_type)
+
+# hospital size according to # of beds --- limited to 2015; not beyond
+
+df <- df %>% mutate(hosp_size = fct_recode(factor(hosp_bedsize),
+                                           
+                                           "large" = "3",
+                                           "medium" = "2",
+                                           "small" = "1"))
+
+df %>% count(hosp_size)
+
+df <- df %>% mutate(insu = fct_recode(factor(pay1),
+                                    "medicare" = "1",
+                                    "medicaid" = "2",
+                                    "private" = "3",
+                                    "self-pay" = "4",
+                                    "others" = "5",
+                                    "others" = "6"
+                                    ))
 ```
 
 Now, get survey design object created to start doing basic survey analysis:
 
-```{r}
+```{r classical survey object}
+
+df$count[df$year.x == 2008]<- 2619
+df$count[df$year.x == 2009]<- 2751
+df$count[df$year.x == 2010]<- 2504
+df$count[df$year.x == 2011]<- 2777
+df$count[df$year.x == 2012]<- 2644
+df$count[df$year.x == 2013]<- 2754
+df$count[df$year.x == 2014]<- 3044
+df$count[df$year.x == 2015]<- 2355
+
+df %>% count(count)
 options(survey.lonely.psu = "certainty")
 
 df_s<- svydesign(ids = ~hosp_nis, weights = ~discwt.x, strata = ~nis_stratum.x, data = df, nest = TRUE)
@@ -94,8 +147,28 @@ svytable(~deal+year.x , design = df_s)
 # patients having combined type A aortic dissection repair and TEVAR during the same admission
 
 svytable(~comb + year.x , design = df_s)
+```
+
+```{r srvyr survey object}
+
+svy_df <- df %>% srvyr::as_survey_design(weights = discwt.x, strata = nis_stratum.x, id = hosp_nis, nest = TRUE)
+
+svy_df %>%
+  group_by(year.x) %>%
+  summarise(age = srvyr::survey_mean(age, vartype = "ci"))
+
+# contingency table for year and treatment
+
+svytable(~year.x + deal, design = df_s)
+
+df %>% count(year.x)
+
+survey::svytable(~year.x + deal, design = svy_df)
 
 ```
+
+
+
 
 ```{r}
 # create basic demographics and presentation of patients according to year and overall.
@@ -114,7 +187,9 @@ svytable(~aweekend, design = df_s)
 
 svytable(~female, design = df_s)
 
-table(df$race)
+
+
+                                  
 ```
 
 
