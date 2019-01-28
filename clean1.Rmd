@@ -1,23 +1,25 @@
 ---
-title: "clean"
+title: 'Aortic dissection: Basic survey analysis and results'
 output:
-  html_document: default
-  word_document: default
+  prettydoc::html_pretty:
+  highlight: vignette
+  theme: hpstr
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# this is the document for further cleaning the database to get variables into order.
+This is the document for further cleaning the database to get variables into order. The data consists of years 2008 - 2015. Patients: All admissions for acute emergent aortic dissection. Cohort selection: From the earlier $rmarkdown$ file
 
 ```{r get the dataframe into the system}
 
 library(haven);library(tidyverse);library(mosaic);library(survey)
+library(skimr);library(srvyr);library(forcats)
 
-df <- read_csv("D:/aor_dis/df/n0815.csv")
+df <- read_csv("G:/aor_dis/df/n0815.csv")
 
-str(df)
+
 ```
 
 
@@ -115,6 +117,13 @@ df <- df %>% mutate(insu = fct_recode(factor(pay1),
                                     ))
 ```
 
+```{r skim to get basic understanding of dataframe after all changes and variable inserts}
+
+glimpse(df)
+
+```
+
+
 Now, get survey design object created to start doing basic survey analysis:
 
 ```{r classical survey object}
@@ -149,6 +158,9 @@ svytable(~deal+year.x , design = df_s)
 svytable(~comb + year.x , design = df_s)
 ```
 
+
+Create new survey object for tidy modelling
+
 ```{r srvyr survey object}
 
 svy_df <- df %>% srvyr::as_survey_design(weights = discwt.x, strata = nis_stratum.x, id = hosp_nis, nest = TRUE)
@@ -168,7 +180,7 @@ survey::svytable(~year.x + deal, design = svy_df)
 ```
 
 
-
+Survey analysis for baseline demographics of the data:
 
 ```{r}
 # create basic demographics and presentation of patients according to year and overall.
@@ -187,9 +199,360 @@ svytable(~aweekend, design = df_s)
 
 svytable(~female, design = df_s)
 
+# region
+
+svytable(~hosp_region, design = df_s)
+
+# hosp_type
+
+svytable(~hosp_type, design = df_s)
+
+# hospital_size
+
+svytable(~hosp_size, design = df_s)
 
 
                                   
+```
+To get the baseline $comorbidites-CM$ variables in the data, we will need to left_join the dataframes according to year.
+
+We will need to first use $filter$ to get data according to year and then left_join data according to $nis-stratum$. This will need to be done for each year and then $rbind$ again to get the original dataframe back again.
+
+Year 2008:
+
+```{r merge and get year 2008 done}
+
+# year 2008
+
+n08 <- df %>% filter(year.x == 2008)
+
+# get the original core file from that year
+
+s08 <- read_stata("G:/NIS_DATA/nis2008/NIS_2008_Severity.dta")
+
+names(s08) <- tolower(names(s08))
+
+# then we will only select "cm" variables and "nis_stratum".
+
+s08$key_nis <- s08$key
+
+s08_s <- s08 %>% select(key_nis, cm_aids:cm_wghtloss)
+
+m08 <- left_join(n08, s08_s, by = "key_nis")
+
+glimpse(m08)
+```
+
+Year 2009:
+
+```{r}
+
+# year 2009
+
+n09 <- df %>% filter(year.x == 2009)
+
+# get the original core file from that year
+
+s09 <- read_stata("G:/NIS_2009_Severity.dta")
+
+names(s09) <- tolower(names(s09))
+
+# then we will only select "cm" variables and "nis_stratum".
+
+s09$key_nis <- s09$key
+
+s09_s <- s09 %>% select(key_nis, cm_aids:cm_wghtloss)
+
+m09 <- left_join(n09, s09_s, by = "key_nis")
+
+glimpse(m09)
+```
+
+Year 2010:
+
+```{r year 2010}
+
+# year 2010
+
+n10 <- df %>% filter(year.x == 2010)
+
+# get the original core file from that year
+
+s10 <- read_sas("G:/nis_2010_severity.sas7bdat")
+
+names(s10) <- tolower(names(s10))
+
+# then we will only select "cm" variables and "nis_stratum".
+
+s10$key_nis <- s10$key
+
+s10_s <- s10 %>% select(key_nis, cm_aids:cm_wghtloss)
+
+m10 <- left_join(n10, s10_s, by = "key_nis")
+
+glimpse(m10)
+
+```
+
+Year 2011:
+
+```{r year 2011}
+
+# year 2011
+
+n11 <- df %>% filter(year.x == 2011)
+
+# get the original core file from that year
+
+s11 <- read_sas("G:/nis_2011_severity.sas7bdat")
+
+names(s11) <- tolower(names(s11))
+
+# then we will only select "cm" variables and "nis_stratum".
+
+s11$key_nis <- s11$key
+
+s11_s <- s11 %>% select(key_nis, cm_aids:cm_wghtloss)
+
+m11 <- left_join(n11, s11_s, by = "key_nis")
+
+glimpse(m11)
+
+```
+
+Year 2012:
+
+```{r year 2012}
+
+# year 2011
+
+n12 <- df %>% filter(year.x == 2012)
+
+# get the original core file from that year
+
+s12 <- read_stata("G:/NIS_2012_Severity.dta")
+
+names(s12) <- tolower(names(s12))
+
+# then we will only select "cm" variables and "nis_stratum".
+
+
+s12_s <- s12 %>% select(key_nis, cm_aids:cm_wghtloss)
+
+m12 <- left_join(n12, s12_s, by = "key_nis")
+
+glimpse(m12)
+
+```
+
+
+Year 2013:
+
+```{r year 2013}
+
+# year 2013
+
+n13 <- df %>% filter(year.x == 2013)
+
+# get the original core file from that year
+
+s13 <- read_stata("G:/NIS_DATA/nis2013/NIS_2013_Severity.dta")
+
+names(s13) <- tolower(names(s13))
+
+# then we will only select "cm" variables and "nis_stratum".
+
+
+s13_s <- s13 %>% select(key_nis, cm_aids:cm_wghtloss)
+
+m13 <- left_join(n13, s13_s, by = "key_nis")
+
+glimpse(m13)
+
+```
+
+
+Year 2014:
+
+```{r year 2014}
+
+# year 2014
+
+n14 <- df %>% filter(year.x == 2014)
+
+# get the original core file from that year
+
+s14 <- read_stata("G:/NIS_2014_Severity.dta")
+
+names(s14) <- tolower(names(s14))
+
+# then we will only select "cm" variables and "nis_stratum".
+
+
+s14_s <- s14 %>% select(key_nis, cm_aids:cm_wghtloss)
+
+m14 <- left_join(n14, s14_s, by = "key_nis")
+
+glimpse(m14)
+
+```
+
+
+Year 2015:
+
+```{r year 2015}
+
+# year 2015
+
+n15 <- df %>% filter(year.x == 2015)
+
+# get the original core file from that year
+
+s15 <- read_stata("G:/NIS_2015Q1Q3_Severity.dta")
+
+names(s15) <- tolower(names(s15))
+
+# then we will only select "cm" variables and "nis_stratum".
+
+
+s15_s <- s15 %>% select(key_nis, cm_aids:cm_wghtloss)
+
+m15 <- left_join(n15, s15_s, by = "key_nis")
+
+glimpse(m15)
+
+```
+
+*rbind* all dataframes together again:
+
+```{r rbind all dataframes}
+
+df_new <- rbind(m08,m09,m10,m11,m12,m13,m14,m15)
+
+```
+
+Create new standard and tidy survey object again so that we can do more survey analysis.
+
+```{r new survey object}
+
+options(survey.lonely.psu = "certainty")
+
+dfnew_s<- svydesign(ids = ~hosp_nis, weights = ~discwt.x, strata = ~nis_stratum.x, data = df_new, nest = TRUE)
+
+summary(dfnew_s)
+
+# modified survey object for tidy analysis
+
+svy_dfnew <- df_new %>% srvyr::as_survey_design(weights = discwt.x, strata = nis_stratum.x, id = hosp_nis, nest = TRUE)
+```
+
+Now the dataframe is almost complete. Plan to decide whether to focus the paper on all patients with acute thoracic dissection or only those who underwent type a aortic dissection repair. 
+
+For now I will plan to subset the data for only type a dissection repair patients and do the analysis for these patients.
+1. Trend analysis of prevalence for repair of type a
+2. demographics overall and year wise trends esp. for important variables like age, COPD, gender, renal dysfunction
+3. Identify variables important for type a aortic dissection from icd9 codes: marfans syndrome, medial cystic necrosis and any connective tissue disorders that i can identify using icd9 codes. then proceed to provide overall and trends for each predisposing factor.
+4. clinical outcome: los, mortality, stroke, acute renal failure, respiratory failure, discharge planning and discharge location
+
+marfan syndrome = 759.82
+
+thoracic aortic ectasia = 447.71
+
+turners syndrome = 758.6
+
+ehler danlos syndrome = 756.83
+
+
+
+
+marfan syndrome:
+
+```{r further important diagnoses1}
+
+marf <- as.character(c(75982))
+
+df_new$marfan <- with(df_new, ifelse((dx1 %in% marf | dx2 %in% marf | dx3 %in% marf | dx4 %in% marf | dx5  %in% marf | 
+                                        dx6 %in% marf | dx7 %in% marf | dx8 %in% marf | dx9 %in% marf | dx10 %in% marf), 1, 0))
+
+df_new %>% count(marfan)
+
+```
+
+ehler danlos syndrome:
+
+```{r further important diagnoses2}
+
+ehd <- as.character(c(75683))
+
+df_new$ehd <- with(df_new, ifelse((dx1 %in% ehd | dx2 %in% ehd | dx3 %in% ehd | dx4 %in% ehd | dx5  %in% ehd | 
+                                        dx6 %in% ehd | dx7 %in% ehd | dx8 %in% ehd | dx9 %in% ehd | dx10 %in% ehd), 1, 0))
+
+df_new %>% count(ehd)
+
+```
+
+thoracic aortic ectasia:
+
+```{r}
+
+aae <- as.character(c(44771))
+
+df_new$aae <- with(df_new, ifelse((dx1 %in% aae | dx2 %in% aae | dx3 %in% aae | dx4 %in% aae | dx5  %in% aae | 
+                                        dx6 %in% aae | dx7 %in% aae | dx8 %in% aae | dx9 %in% aae | dx10 %in% aae), 1, 0))
+
+df_new %>% count(aae)
+```
+
+
+Now I want to focus first only on patients with type a aortic dissection
+
+```{r dataframe for only type a aortic dissection}
+
+ta <- df_new %>% filter(tasr == "yes")
+
+dim(ta)
+```
+
+Survey methods for type a aortic dissection repair patients:
+
+```{r}
+
+
+
+# new design object
+
+ta_s <- ta %>% srvyr::as_survey_design(weights = discwt.x, strata = nis_stratum.x, id = hosp_nis, nest = TRUE)
+
+
+ta_s %>%
+  summarise(age = survey_mean(age,NA.RM = TRUE, vartype = c("ci"), df = Inf))
+
+
+ta_s %>%
+  group_by(year.x) %>%
+  summarise(age = survey_mean(age, na.rm = TRUE, vartype = c("ci"), df = Inf))
+
+
+# gender overall
+
+ta_s %>%
+  summarise(female = survey_total(female, na.rm = TRUE, vartype = c("ci"), df = Inf))
+
+# gender_year
+
+ta_s %>%
+  group_by(year.x) %>%
+  summarise(female = survey_total(female, na.rm = TRUE, vartype = c("ci"), df = Inf))
+
+# type of hospital
+
+# overall for all type a aortic dissection repairs
+
+survey::svytable(~hosp_type, design = ta_s)
+
+# hospital type by year 
+
+survey::svytable(~hosp_type + year.x, design = ta_s)
 ```
 
 
