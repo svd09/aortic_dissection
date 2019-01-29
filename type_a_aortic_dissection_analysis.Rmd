@@ -1,0 +1,337 @@
+---
+title: "Type A Aortic Dissection"
+subtitle: "NIS data analysis"
+author: "Salil Deo "
+date: "`r Sys.Date()`"
+output: tint::tintHtml
+
+link-citations: yes
+---
+
+```{r setup, include=FALSE}
+library(tint)
+
+```
+
+
+this a document for analysis of only type a aortic dissection patients undergoing surgical repair. the dataframe is subsetted from the entire 2008 - 2015 data on aortic dissection created earlier. the original dataframe can be used to determine overall proportions if needed.
+
+```{r load libraries}
+
+library(haven);library(tidyverse);library(mosaic);library(survey)
+library(skimr);library(srvyr);library(forcats)
+
+options(survey.lonely.psu = "certainty")
+
+
+
+```
+
+load the dataframe
+
+```{r load dataframe}
+
+ta <- read_csv("D:/aortic_dissection/ta.csv")
+
+skim(ta)
+
+
+```
+
+Survey methods for type a aortic dissection repair patients:
+
+```{r}
+
+
+
+# new design object
+
+ta_s <- ta %>% srvyr::as_survey_design(weights = discwt.x, strata = nis_stratum.x, id = hosp_nis, nest = TRUE)
+
+
+ta_s %>%
+  summarise(age = survey_mean(age,NA.RM = TRUE, vartype = c("ci"), df = Inf))
+
+
+ta_s %>%
+  group_by(year.x) %>%
+  summarise(age = survey_mean(age, na.rm = TRUE, vartype = c("ci"), df = Inf))
+
+
+# gender overall
+
+ta_s %>%
+  summarise(female = survey_total(female, na.rm = TRUE, vartype = c("ci"), df = Inf))
+
+# gender_year
+
+ta_s %>%
+  group_by(year.x) %>%
+  summarise(female = survey_total(female, na.rm = TRUE, vartype = c("ci"), df = Inf))
+
+# type of hospital
+
+# overall for all type a aortic dissection repairs
+
+survey::svytable(~hosp_type, design = ta_s)
+
+# hospital type by year 
+
+survey::svytable(~hosp_type + year.x, design = ta_s)
+
+# race overall and by year
+
+survey::svytable(~race_n, design = ta_s)
+
+# insurance type overall and by year
+
+survey::svytable(~insu,  design = ta_s)
+
+survey::svytable(~year.x + insu,  design = ta_s)
+
+# hospital size overall and by year
+
+survey::svytable(~hosp_size, design = ta_s)
+
+survey::svytable(~year.x + hosp_size, design = ta_s)
+
+
+# renal failure patients overall and by year
+
+ta_s %>%
+  summarise(prop = survey_mean(cm_renlfail, na.rm = TRUE, vartype = c("ci"), deff = Inf))
+
+# renal dysfunction by year
+
+ ta_s %>%
+  group_by(year.x) %>%
+  summarise(prop = survey_mean(cm_renlfail, na.rm = TRUE, vartype = c("ci")))
+
+
+
+
+
+# chronic lung disease/ COPD
+
+ta_s %>%
+  summarise(prop = survey_mean(cm_chrnlung, na.rm = TRUE, vartype = c("ci")))
+
+ ta_s %>%
+  group_by(year.x) %>%
+  summarise(prop = survey_mean(cm_chrnlung, na.rm = TRUE, vartype = c("ci")))
+
+
+
+
+
+# congestive heart failure 
+
+ta_s %>%
+  summarise(prop = survey_mean(cm_chf, na.rm = TRUE, vartype = c("ci")))
+
+ta_s %>%
+  group_by(year.x) %>%
+  summarise(prop = survey_mean(cm_chf, na.rm = TRUE, vartype = c("ci")))
+
+
+
+# specific etiology for aortic dissection
+# marfan syndrome
+
+ta_s %>%
+  summarise(prop = survey_mean(marfan, na.rm = TRUE, vartype = c("ci")))
+
+# ehler danlos syndrome
+
+ta_s %>%
+  summarise(prop = survey_mean(ehd, na.rm = TRUE, vartype = c("ci")))
+
+
+# aortic ectasia
+
+ta_s %>%
+  summarise(prop = survey_mean(aae, na.rm = TRUE, vartype = c("ci")))
+
+
+# uncomplicated and complicated hypertension
+
+ta_s %>%
+  summarise(prop = survey_mean(cm_htn_c, na.rm = TRUE, vartype = c("ci")))
+
+ta_s %>%
+  group_by(year.x) %>%
+  summarise(prop = survey_mean(cm_htn_c, na.rm = TRUE, vartype = c("ci")))
+
+# complicated dm patients
+
+ta_s %>%
+  summarise(prop = survey_mean(cm_dmcx, na.rm = TRUE, vartype = c("ci")))
+
+ta_s %>%
+  group_by(year.x) %>%
+  summarise(prop = survey_mean(cm_dmcx, na.rm = TRUE, vartype = c("ci")))
+
+
+# prior cardiac surgery
+
+# icd9 code V45.89
+
+prior_cs <- as.character(c("V4589"))
+
+ta$prior_cs <- with(ta, ifelse((dx1 %in% prior_cs | dx2 %in% prior_cs | dx3 %in% prior_cs | dx4 %in% prior_cs | dx5 %in% prior_cs | dx7 %in% prior_cs | dx8 %in% prior_cs | dx9 %in% prior_cs | dx10 %in% prior_cs), 1, 0))
+
+ta %>% count(prior_cs)
+
+
+ta_s <- ta %>% srvyr::as_survey_design(weights = discwt.x, strata = nis_stratum.x, id = hosp_nis, nest = TRUE)
+
+ta_s %>% 
+  summarise(prop = survey_mean(prior_cs, na.rm = TRUE, vartype = c("ci")))
+
+ta_s %>%
+  group_by(year.x) %>%
+  summarise(prop = survey_mean(prior_cs, na.rm = TRUE, vartype = c("ci")))
+
+
+```
+
+also create variables for postoperative events and outcome:
+
+
+```{r}
+# create variables for postoperative events:
+
+#acute renal failure
+
+aki <- as.character(c("5849"))
+
+ta$aki <- with(ta, ifelse((dx1 %in% aki | dx2 %in% aki | dx3 %in% aki | dx4 %in% aki | dx5 %in% aki | dx7 %in% aki | dx8 %in% aki | dx9 %in% aki | dx10 %in% aki), 1, 0))
+
+ta %>% count(aki)
+
+
+# acute respiratory failure 
+# icd9 code 51881
+
+avi <- as.character(c("51881"))
+
+ta$avi <- with(ta, ifelse((dx1 %in% avi | dx2 %in% avi | dx3 %in% avi | dx4 %in% avi | dx5 %in% avi | dx7 %in% avi | dx8 %in% avi | dx9 %in% avi | dx10 %in% avi), 1, 0))
+
+ta %>% count(avi)
+
+# acute postoperative stroke
+# icd 9 code 43411
+
+st <- as.character(c("43411"))
+
+ta$stroke <- with(ta, ifelse((dx1 %in% st | dx2 %in% st | dx3 %in% st | dx4 %in% st | dx5 %in% st | dx7 %in% st | dx8 %in% st | dx9 %in% st | dx10 %in% st), 1, 0))
+
+ta %>% count(stroke)
+
+# acute abdomen / acute abdominal emergency
+# icd9 code 789.00
+
+
+acab <- as.character(c("78900"))
+
+ta$acab <- with(ta, ifelse((dx1 %in% acab | dx2 %in% acab | dx3 %in% acab | dx4 %in% acab | dx5 %in% acab | dx7 %in% acab | dx8 %in% acab | dx9 %in% acab | dx10 %in% acab), 1, 0))
+
+ta %>% count(acab)
+
+# cardiac arrest
+# icd 9 code 4275
+
+
+c_arrest <- as.character(c("4275"))
+
+ta$c_arrest <- with(ta, ifelse((dx1 %in% c_arrest | dx2 %in% c_arrest | dx3 %in% c_arrest | dx4 %in% c_arrest | dx5 %in% c_arrest | dx7 %in% c_arrest | dx8 %in% c_arrest | dx9 %in% c_arrest | dx10 %in% c_arrest), 1, 0))
+
+ta %>% count(c_arrest)
+
+# cardiogenic shock 
+# icd 9 code 785.51
+
+
+c_shock <- as.character(c("4275"))
+
+ta$c_shock <- with(ta, ifelse((dx1 %in% c_shock | dx2 %in% c_shock | dx3 %in% c_shock | dx4 %in% c_shock | dx5 %in% c_shock | dx7 %in% c_shock | dx8 %in% c_shock | dx9 %in% c_shock | dx10 %in% c_shock), 1, 0))
+
+ta %>% count(c_shock)
+
+
+
+```
+
+now plan for survey analysis...
+
+```{r}
+
+# redo survey object with the added variables
+
+ta_s <- ta %>% srvyr::as_survey_design(weights = discwt.x, strata = nis_stratum.x, id = hosp_nis, nest = TRUE)
+
+# mortality
+
+ta_s %>%
+  summarise(died = survey_mean(died, vartype = c("ci"), na.rm = TRUE))
+
+# mortality according to year
+
+ta_s %>%
+  group_by(year.x) %>%
+  summarise(died = survey_mean(died, vartype = c("ci"), na.rm = TRUE))
+
+ta_s %>%
+  group_by(year.x, hosp_type) %>%
+  summarise(died = survey_mean(died, vartype = c("ci"), na.rm = TRUE))
+
+# los total
+
+ta_s %>%
+  summarise(los = survey_mean(los, vartype = c("ci"), na.rm = TRUE))
+
+# los according to year
+
+ta_s %>%
+  group_by(year.x) %>%
+  summarise(los = survey_mean(los, vartype = c("ci"), na.rm = TRUE))
+
+## clinical events during hospital admission
+
+# acute kidney failure
+
+ta_s %>%
+  summarise(aki = survey_mean(aki, vartype = c("ci"), na.rm = TRUE))
+
+
+# acute kidney failure per year
+
+ta_s %>%
+  group_by(year.x) %>%
+  summarise(aki = survey_mean(aki, vartype = c("ci"), na.rm = TRUE))
+
+# acute respiratory failure
+
+ta_s %>%
+  summarise(avi = survey_mean(avi, vartype = c("ci"), na.rm = T))
+
+ta_s %>%
+  group_by(year.x) %>%
+  summarise(avi = survey_mean(avi, vartype = c("ci"), na.rm = T))
+
+# cardiogenic shock/cardiac arrest overall and per year
+
+ta_s %>%
+  summarise(shock = survey_mean(c_shock, vartype = c("ci"), na.rm = T))
+```
+
+create table one according to first and last of study:
+
+```{r table one}
+
+tabone <- ta %>%
+  filter(year.x == 2008 | year.x == 2015)
+
+
+```
+
